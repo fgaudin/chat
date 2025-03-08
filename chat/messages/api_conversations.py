@@ -62,7 +62,7 @@ def close_conversation(request, id: int):
 
 
 @router.patch("/{id}/open", response=ConversationOut, auth=agent_auth)
-def close_conversation(request, id: int):
+def open_conversation(request, id: int):
     conversation = get_object_or_404(Conversation, pk=id)
     conversation.status = Conversation.ConversationStatus.OPEN
     conversation.save()
@@ -71,7 +71,7 @@ def close_conversation(request, id: int):
 
 
 @router.patch("/{id}/take", response=ConversationOut, auth=django_auth)
-def close_conversation(request, id: int):
+def take_conversation(request, id: int):
     conversation = get_object_or_404(Conversation, pk=id)
     conversation.assignee = request.user
     conversation.save()
