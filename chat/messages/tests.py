@@ -15,7 +15,7 @@ class MessageApiTest(TestCase):
 
         self.client = TestClient(message_router)
 
-        self.agent_group = Group.objects.create(name="agent")
+        self.agent_group, _ = Group.objects.get_or_create(name="agent")
 
     def test_get_messages_no_uuid(self):
         response = self.client.get("/")
