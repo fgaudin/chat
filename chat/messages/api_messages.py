@@ -1,13 +1,9 @@
 from datetime import datetime
-from os import name
 import uuid
 from typing import List, Optional
-from django.shortcuts import get_object_or_404
-from django.urls import include
 from ninja import Schema, ModelSchema
 from ninja.pagination import RouterPaginated
 from .models import Conversation, Message
-from ninja.security import django_auth
 
 router = RouterPaginated()
 
@@ -80,17 +76,3 @@ def create_message_and_list(request, data: MessageIn, since: int = None):
     )
 
     return list_messages(request, conv.uuid, since=since)
-
-
-class ConversationOut(ModelSchema):
-
-    class Meta:
-        model = Conversation
-        fields = [
-            "uuid",
-            "created_at",
-            "customer_name",
-            "customer_email",
-            "status",
-            "assignee",
-        ]
