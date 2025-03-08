@@ -38,6 +38,18 @@ cd chat
 
 and visit: http://localhost:8000/api/docs
 
+## Code organization
+
+The app uses Django with Django Ninja for the API layer.
+
+The data model is in `chat/messages/models.py`.
+
+The chat API is in `chat/messages/api_messages.py`.
+
+The `chat/messages/api_conversations.py` APIs are some CRUD operations for the agent side.
+
+Tests are in `chat/messages/tests.py`.
+
 ## Description of API
 
 When the customer posts their first message, the frontend would first call `POST /api/messages/`, which takes the following payload:
@@ -89,5 +101,6 @@ The frontend should make sure that no messages are duplicated.
 
 ## Possible improvements
 
-- use Redis Streams for message storage
-- use websockets to avoid polling
+- use a MySQL or PostgreSQL for data.
+- use Redis Streams for message storage and have a replication process to replicate them if needed for long term storage/analysis.
+- use websockets to avoid polling.
