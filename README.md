@@ -75,12 +75,19 @@ The response has this format:
 }
 ```
 
-The frontent should store the conversation uuid for future polling.
+The frontend should store the conversation uuid for future polling.
 `author` can be `CUS` for customer or `AGE` for agent.
 
 To get answers from the agent, the frontent should do a regular polling with `GET /api/messages/{uuid}/?since=1` where `uuid` is the conversation and `since=1` is the last message id received.
 The answer is the list of new messages with the same format.
 
-On the agent side, the list of conversations is available through `GET /api/conversation/` and the frontent can then start polling messages in the same way `GET /api/messages/{uuid}` omitting the `since` parameter initially.
+On the agent side, the list of conversations is available through `GET /api/conversation/` and the frontend can then start polling messages in the same way through `GET /api/messages/{uuid}`, omitting the `since` parameter initially.
 
 Following messages sent by either side should include the `since` parameter `POST /api/messages/?since=x` in their requests to only get the new messages in response.
+
+The frontend should make sure that no messages are duplicated.
+
+## Possible improvements
+
+- use Redis Streams for message storage
+- use websockets to avoid polling
