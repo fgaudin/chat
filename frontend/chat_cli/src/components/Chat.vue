@@ -51,12 +51,15 @@ const sendMessage = async () => {
   console.log('Message sent: ', message.value)
 
   sending.value = true
+  let startPolling = false
 
   const payload: any = {
     content: message.value,
   }
   if (currentConv) {
     payload.conversation = currentConv
+  } else {
+    startPolling = true
   }
 
   try {
@@ -67,11 +70,14 @@ const sendMessage = async () => {
     const messages = response.data.items
 
     if (props.side === 'customer') {
-      const conversation = messages[0].conversation
-      console.log('Conversation ID: ', conversation)
-      sessionStorage.setItem('conv', conversation)
+      currentConv = messages[0].conversation
+      console.log('Conversation ID: ', currentConv)
+      sessionStorage.setItem('conv', currentConv)
     }
     addMessages(messages)
+    if (startPolling) {
+      pollMessages()
+    }
   } catch (error) {
     console.error(error)
   } finally {
