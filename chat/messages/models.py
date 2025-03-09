@@ -52,3 +52,6 @@ class Message(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     author = models.CharField(max_length=3, choices=AuthorChoice.choices)
     content = models.TextField()
+
+    def __str__(self):
+        return f"{self.author} - {self.date} - {self.content[:50]}"

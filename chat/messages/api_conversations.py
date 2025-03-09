@@ -49,7 +49,7 @@ def list_conversations(
     if status:
         conversations = conversations.filter(status=status)
 
-    return conversations.order_by("created_at")
+    return conversations.order_by("-created_at", "-status")
 
 
 @router.patch("/{id}/close", response=ConversationOut, auth=agent_auth)
