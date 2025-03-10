@@ -49,14 +49,12 @@ class MessageApiTest(TestCase):
             {
                 "author": "CUS",
                 "content": "Hello",
-                "conversation": str(conversation.uuid),
                 "date": ANY,
                 "id": message1.id,
             },
             {
                 "author": "AGE",
                 "content": "Hi",
-                "conversation": str(conversation.uuid),
                 "date": ANY,
                 "id": message2.id,
             },
@@ -74,23 +72,12 @@ class MessageApiTest(TestCase):
     def test_create_first_message_as_anonymous(self):
         response = self.client.post("/", json={"content": "Hello"})
 
-        self.assertEqual(response.status_code, 200, response.json())
+        self.assertEqual(response.status_code, 201, response.json())
 
         result = response.json()
-        result = response.json()
-        self.assertEqual(result["count"], 1)
-        expected = [
-            {
-                "author": "CUS",
-                "content": "Hello",
-                "conversation": ANY,
-                "date": ANY,
-                "id": ANY,
-            }
-        ]
-        self.assertEqual(result["items"], expected)
 
-        conversation = Conversation.objects.first()
+        conversation = Conversation.objects.last()
+        self.assertEqual(result["conversation"], str(conversation.uuid))
         self.assertEqual(conversation.customer_name, None)
         self.assertEqual(conversation.customer_email, None)
         self.assertEqual(conversation.customer, None)
@@ -103,21 +90,11 @@ class MessageApiTest(TestCase):
             json={"name": "Alice", "email": "alice@test.com", "content": "Hello"},
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         result = response.json()
-        self.assertEqual(result["count"], 1)
-        expected = [
-            {
-                "author": "CUS",
-                "content": "Hello",
-                "conversation": ANY,
-                "date": ANY,
-                "id": ANY,
-            }
-        ]
-        self.assertEqual(result["items"], expected)
 
         conversation = Conversation.objects.first()
+        self.assertEqual(result["conversation"], str(conversation.uuid))
         self.assertEqual(conversation.customer_name, "Alice")
         self.assertEqual(conversation.customer_email, "alice@test.com")
         self.assertEqual(conversation.customer, None)
@@ -126,20 +103,11 @@ class MessageApiTest(TestCase):
         user = User.objects.create_user("Bob", email="bob@test.com")
         response = self.client.post("/", json={"content": "Hi"}, user=user)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         result = response.json()
-        expected = [
-            {
-                "author": "CUS",
-                "content": "Hi",
-                "conversation": ANY,
-                "date": ANY,
-                "id": ANY,
-            }
-        ]
-        self.assertEqual(result["items"], expected)
 
         conversation = Conversation.objects.first()
+        self.assertEqual(result["conversation"], str(conversation.uuid))
         self.assertEqual(conversation.customer_name, None)
         self.assertEqual(conversation.customer_email, None)
         self.assertEqual(conversation.customer, user)
@@ -162,7 +130,7 @@ class MessageApiTest(TestCase):
         user.groups.add(self.agent_group)
 
         response = self.client.post(
-            f"/?since={message2.id}",  # can't find how to pass query params properly
+            "/",
             json={
                 "conversation": conversation2.uuid.hex,
                 "content": "How can I help you",
@@ -170,19 +138,9 @@ class MessageApiTest(TestCase):
             user=user,
         )
 
-        self.assertEqual(response.status_code, 200, response.json())
+        self.assertEqual(response.status_code, 201, response.json())
 
-        result = response.json()
-        expected = [
-            {
-                "author": "AGE",
-                "content": "How can I help you",
-                "conversation": str(conversation2.uuid),
-                "date": ANY,
-                "id": ANY,
-            }
-        ]
-        self.assertEqual(result["items"], expected)
+        self.assertEqual(conversation2.messages.count(), 2)
 
 
 class ConversationApiTest(TestCase):
