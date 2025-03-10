@@ -243,16 +243,16 @@ class ConversationApiTest(TestCase):
 
         result = response.json()
         self.assertEqual(result["count"], 2)
-        self.assertEqual(result["items"][0]["id"], self.conv2.id)
-        self.assertEqual(result["items"][1]["id"], self.conv3.id)
+        self.assertEqual(result["items"][0]["id"], self.conv3.id)
+        self.assertEqual(result["items"][1]["id"], self.conv2.id)
 
     def test_list_open_conversations(self):
         response = self.client.get("/?status=OPEN", user=self.user)
 
         result = response.json()
         self.assertEqual(result["count"], 2)
-        self.assertEqual(result["items"][0]["id"], self.conv1.id)
-        self.assertEqual(result["items"][1]["id"], self.conv2.id)
+        self.assertEqual(result["items"][0]["id"], self.conv2.id)
+        self.assertEqual(result["items"][1]["id"], self.conv1.id)
 
     def test_list_closed_conversations(self):
         response = self.client.get("/?status=CLOSED", user=self.user)

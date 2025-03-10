@@ -17,12 +17,16 @@ let currentConv: string
 let pollHandler: any
 const delay = 1000
 let scroll = false
+let chatSocket: WebSocket
 
 interface Message {
   id: number
   content: string
   date: string
   author: string
+}
+
+interface MessageResponse {
   conversation: string
 }
 
@@ -34,7 +38,9 @@ onMounted(() => {
     currentConv = sessionStorage.getItem('conv') || ''
   }
   console.log(currentConv)
-  pollMessages()
+  if (currentConv) {
+    listen(currentConv)
+  }
 })
 
 onUnmounted(() => {
@@ -47,37 +53,41 @@ onUpdated(() => {
   }
 })
 
-const sendMessage = async () => {
-  console.log('Message sent: ', message.value)
+const listen = (conversation: string) => {
+  if (!chatSocket) {
+    chatSocket = new WebSocket(`ws://${window.location.host}/ws/messages/${conversation}/`)
+    chatSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      addMessages(data.items)
+      if (data.items.length > 0) {
+        scroll = true
+      }
+    }
+  }
+}
 
+const sendMessage = async () => {
   sending.value = true
-  let startPolling = false
 
   const payload: any = {
     content: message.value,
   }
   if (currentConv) {
     payload.conversation = currentConv
-  } else {
-    startPolling = true
   }
 
   try {
-    const response = await axios.post(`/api/messages/?since=${since.value}`, payload)
-    if (response.status !== 200) {
+    const response = await axios.post(`/api/messages/`, payload)
+    if (response.status !== 201) {
       throw new Error('Failed to send message')
     }
-    const messages = response.data.items
 
     if (props.side === 'customer') {
-      currentConv = messages[0].conversation
+      currentConv = response.data.conversation
       console.log('Conversation ID: ', currentConv)
       sessionStorage.setItem('conv', currentConv)
     }
-    addMessages(messages)
-    if (startPolling) {
-      pollMessages()
-    }
+    listen(currentConv)
   } catch (error) {
     console.error(error)
   } finally {
@@ -96,26 +106,6 @@ const addMessages = (newMessages: Message[]) => {
       }
     }
   })
-  if (newMessages.length > 0) {
-    scroll = true
-  }
-}
-
-const pollMessages = async () => {
-  if (!currentConv) {
-    return
-  }
-
-  try {
-    const response = await axios.get(`/api/messages/${currentConv}/?since=${since.value}`)
-    if (response.status !== 200) {
-      throw new Error('Failed to fetch messages')
-    }
-    addMessages(response.data.items)
-    pollHandler = setTimeout(pollMessages, delay)
-  } catch (error) {
-    console.error(error)
-  }
 }
 
 const scrollToBottom = () => {

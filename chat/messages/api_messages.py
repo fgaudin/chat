@@ -3,6 +3,8 @@ import uuid
 from typing import List, Optional
 from ninja import Schema, ModelSchema
 from ninja.pagination import RouterPaginated
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import Conversation, Message
 
 router = RouterPaginated()
@@ -13,12 +15,6 @@ class MessageOut(ModelSchema):
     class Meta:
         model = Message
         fields = ["id", "date", "content", "author"]
-
-    conversation: uuid.UUID
-
-    @staticmethod
-    def resolve_conversation(obj):
-        return obj.conversation.uuid
 
 
 @router.get("/{conversation}/", response=List[MessageOut])
@@ -44,35 +40,22 @@ class MessageIn(Schema):
     content: str
 
 
-@router.post("/", response=List[MessageOut])
-def create_message_and_list(request, data: MessageIn, since: int = None):
-    conv = None
+class ConversationOut(Schema):
+    conversation: uuid.UUID
 
-    # retrieve requested conversation
-    if data.conversation:
-        conv = Conversation.objects.filter(uuid=data.conversation).first()
 
-    # create new conversation if not found or if first message (no uuid provided)
-    if not conv:
-        user = None
-        if request.user.is_authenticated:
-            user = request.user
-        conv = Conversation.objects.create(
-            customer_name=data.name, customer_email=data.email, customer=user
-        )
-
-    author = Message.AuthorChoice.CUSTOMER
-
-    if (
-        request.user.is_authenticated
-        and request.user.groups.filter(name="agent").exists()
-    ):
-        author = Message.AuthorChoice.AGENT
-
-    Message.objects.create(
-        conversation=conv,
-        author=author,
-        content=data.content,
+@router.post("/", response={201: ConversationOut})
+def create_message_and_list(request, data: MessageIn):
+    message = Message.objects.create_message(
+        data.content,
+        conversation_uuid=data.conversation,
+        name=data.name,
+        email=data.email,
+        user=request.user,
     )
 
-    return list_messages(request, conv.uuid, since=since)
+    channel_layer = get_channel_layer()
+    group_name = message.conversation.uuid.hex
+    async_to_sync(channel_layer.group_send)(group_name, {"type": "message.received"})
+
+    return 201, {"conversation": message.conversation.uuid}
