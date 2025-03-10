@@ -1,36 +1,12 @@
-from datetime import datetime
 import uuid
-from typing import List, Optional
-from ninja import Schema, ModelSchema
+from typing import Optional
+from ninja import Schema
 from ninja.pagination import RouterPaginated
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import Conversation, Message
+from .models import create_message
 
 router = RouterPaginated()
-
-
-class MessageOut(ModelSchema):
-
-    class Meta:
-        model = Message
-        fields = ["id", "date", "content", "author"]
-
-
-@router.get("/{conversation}/", response=List[MessageOut])
-def list_messages(
-    request,
-    conversation: uuid.UUID,
-    since: int = None,
-):
-    messages = Message.objects.filter(conversation__uuid=conversation).select_related(
-        "conversation"
-    )
-
-    if since:
-        messages = messages.filter(id__gt=since)
-
-    return messages.order_by("id")
 
 
 class MessageIn(Schema):
@@ -46,7 +22,7 @@ class ConversationOut(Schema):
 
 @router.post("/", response={201: ConversationOut})
 def create_message_and_list(request, data: MessageIn):
-    message = Message.objects.create_message(
+    result = create_message(
         data.content,
         conversation_uuid=data.conversation,
         name=data.name,
@@ -55,7 +31,7 @@ def create_message_and_list(request, data: MessageIn):
     )
 
     channel_layer = get_channel_layer()
-    group_name = message.conversation.uuid.hex
+    group_name = result["conversation"].uuid.hex
     async_to_sync(channel_layer.group_send)(group_name, {"type": "message.received"})
 
-    return 201, {"conversation": message.conversation.uuid}
+    return 201, {"conversation": result["conversation"].uuid}

@@ -127,3 +127,6 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MESSAGE_BROKER = "redis://localhost:6379/0"
+CONVERSATION_EXPIRATION = 60 * 60 * 24 * 7

@@ -8,4 +8,5 @@ dependencies = [
     "channels[daphne]>=4.2.0",
     "django>=5.1.7",
     "django-ninja>=1.3.0",
+    "redis>=5.2.1",
 ]
