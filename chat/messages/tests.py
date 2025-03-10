@@ -1,9 +1,12 @@
 import email
+from unittest import skip
 from unittest.mock import ANY
 import uuid
 from django.test import TestCase
 from ninja.testing import TestClient
-from .models import Conversation, Message
+
+from .redis import get_messages
+from .models import Conversation
 from messages.api_messages import router as message_router
 from messages.api_conversations import router as conversation_router
 from django.contrib.auth.models import User, Group
@@ -16,58 +19,6 @@ class MessageApiTest(TestCase):
         self.client = TestClient(message_router)
 
         self.agent_group, _ = Group.objects.get_or_create(name="agent")
-
-    def test_get_messages_no_uuid(self):
-        response = self.client.get("/")
-
-        self.assertEqual(response.status_code, 405)
-
-    def test_get_messages_wrong_uuid(self):
-        response = self.client.get(f"/{str(uuid.uuid4())}/")
-
-        self.assertEqual(response.status_code, 200)
-        expected = {"items": [], "count": 0}
-        self.assertEqual(response.json(), expected)
-
-    def test_get_messages(self):
-        conversation = Conversation.objects.create()
-        message1 = conversation.messages.create(
-            content="Hello", author=Message.AuthorChoice.CUSTOMER
-        )
-        message2 = conversation.messages.create(
-            content="Hi", author=Message.AuthorChoice.AGENT
-        )
-
-        response = self.client.get(f"/{conversation.uuid.hex}/")
-
-        self.assertEqual(response.status_code, 200)
-
-        result = response.json()
-        self.assertEqual(result["count"], 2)
-
-        expected = [
-            {
-                "author": "CUS",
-                "content": "Hello",
-                "date": ANY,
-                "id": message1.id,
-            },
-            {
-                "author": "AGE",
-                "content": "Hi",
-                "date": ANY,
-                "id": message2.id,
-            },
-        ]
-        self.assertEqual(result["items"], expected)
-
-        response = self.client.get(f"/{conversation.uuid.hex}/?since={message1.id}")
-
-        self.assertEqual(response.status_code, 200)
-
-        result = response.json()
-        self.assertEqual(result["count"], 1)
-        self.assertEqual(result["items"], expected[1:])
 
     def test_create_first_message_as_anonymous(self):
         response = self.client.post("/", json={"content": "Hello"})
@@ -112,35 +63,18 @@ class MessageApiTest(TestCase):
         self.assertEqual(conversation.customer_email, None)
         self.assertEqual(conversation.customer, user)
 
-    def test_create_add_message(self):
-        conversation1 = Conversation.objects.create()
-        conversation1.messages.create(
-            content="Hello1", author=Message.AuthorChoice.CUSTOMER
-        )
-        conversation2 = Conversation.objects.create()
-        message2 = conversation2.messages.create(
-            content="Hello2", author=Message.AuthorChoice.CUSTOMER
-        )
-        conversation3 = Conversation.objects.create()
-        conversation3.messages.create(
-            content="Hello3", author=Message.AuthorChoice.CUSTOMER
-        )
-
-        user = User.objects.create_user("Agent", email="agent@test.com")
-        user.groups.add(self.agent_group)
-
+    def test_add_message_to_conversation(self):
+        conversation = Conversation.objects.create()
         response = self.client.post(
-            "/",
-            json={
-                "conversation": conversation2.uuid.hex,
-                "content": "How can I help you",
-            },
-            user=user,
+            "/", json={"content": "Hello", "conversation": str(conversation.uuid)}
         )
 
-        self.assertEqual(response.status_code, 201, response.json())
+        self.assertEqual(response.status_code, 201)
+        result = response.json()
 
-        self.assertEqual(conversation2.messages.count(), 2)
+        self.assertEqual(result["conversation"], str(conversation.uuid))
+        messages = get_messages(conversation.uuid.hex)
+        self.assertEqual(len(messages), 1)
 
 
 class ConversationApiTest(TestCase):

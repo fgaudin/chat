@@ -1,13 +1,8 @@
-import json
-from os import sync
-
-from asgiref.sync import async_to_sync, sync_to_async
 from channels.db import database_sync_to_async
 
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from .api_messages import MessageOut
-from .models import Message
+from .redis import get_messages
 
 
 class MessageConsumer(AsyncJsonWebsocketConsumer):
@@ -27,20 +22,16 @@ class MessageConsumer(AsyncJsonWebsocketConsumer):
 
     @database_sync_to_async
     def latest_messages(self):
-        messages = Message.objects.filter(conversation__uuid=self.conv_clean)
+        messages = get_messages(self.conv_clean, since=self.since)
 
-        return list(messages.filter(id__gt=self.since).order_by("id"))
+        return messages
 
     async def send_latest_messages(self):
         messages = await self.latest_messages()
-        payload = {
-            "items": [
-                MessageOut.from_orm(message).model_dump(mode="json")
-                for message in messages
-            ]
-        }
 
-        self.since = messages[-1].id if messages else self.since
+        payload = {"items": messages}
+
+        self.since = messages[-1]["id"] if messages else self.since
 
         await self.send_json(payload)
 
